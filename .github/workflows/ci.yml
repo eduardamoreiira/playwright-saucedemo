@@ -23,8 +23,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       # 3. Instalar dependências
       - name: Install dependencies
@@ -51,13 +51,13 @@ jobs:
           retention-days: 30
 
       # 7. Upload dos resultados para o Allure (sempre, mesmo com falha)
-      - name: Upload Allure Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: allure-results
-          path: allure-results/
-          retention-days: 30
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          BASE_URL: https://www.saucedemo.com
+          USER: ${{ secrets.USER }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          CI: true
 
       # 8. Upload de screenshots e vídeos em caso de falha
       - name: Upload test artifacts on failure

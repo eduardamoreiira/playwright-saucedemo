@@ -26,6 +26,7 @@ Automação dos principais fluxos da aplicação [SauceDemo](https://www.saucede
 | [TypeScript](https://www.typescriptlang.org/) | ^5.0.0 | Linguagem principal |
 | [Node.js](https://nodejs.org/) | >= 18.x | Ambiente de execução |
 | [Allure Report](https://allurereport.org/) | ^2.x | Relatório de testes |
+| [dotenv](https://github.com/motdotla/dotenv) | ^16.x | Gerenciamento de variáveis de ambiente |
 | [GitHub Actions](https://github.com/features/actions) | — | Pipeline CI/CD |
 
 ---
@@ -56,7 +57,10 @@ Automação dos principais fluxos da aplicação [SauceDemo](https://www.saucede
 ├── 📁 allure-report/               # Relatório HTML gerado
 ├── playwright.config.ts
 ├── package.json
-└── tsconfig.json
+├── tsconfig.json
+├── .env                            # Variáveis locais (não sobe para o Git)
+├── example.env                    # Template das variáveis (sobe para o Git)
+└── .gitignore
 ```
 
 ---
@@ -65,6 +69,29 @@ Automação dos principais fluxos da aplicação [SauceDemo](https://www.saucede
 
 - Node.js >= 18.x instalado
 - npm ou yarn
+
+---
+
+## 🔐 Variáveis de Ambiente
+
+As credenciais e configurações sensíveis são gerenciadas via arquivo `.env`, que **nunca deve ser commitado** no repositório.
+
+**1. Copie o arquivo de exemplo:**
+```bash
+cp .env.example .env
+```
+
+**2. Preencha o `.env` com os valores:**
+```env
+BASE_URL=https://www.saucedemo.com
+
+USER=user
+PASSWORD=secret_sauce
+```
+
+> ⚠️ O arquivo `.env` já está no `.gitignore`. Nunca remova essa entrada.
+
+**No CI/CD (GitHub Actions)**, as variáveis são injetadas via **Secrets** do repositório. Veja como configurar em [CI/CD — GitHub Actions](#-cicd--github-actions).
 
 ---
 
@@ -138,11 +165,35 @@ npx allure open allure-report
 O pipeline executa automaticamente a cada **push** ou **pull request** na branch `main`.
 
 O que o pipeline faz:
-1. Instala as dependências
-2. Instala os browsers do Playwright
+1. Instala as dependências e browsers do Playwright
+2. Injeta as credenciais via **GitHub Secrets**
 3. Executa todos os testes
-4. Publica o relatório HTML como artefato
-5. (Falha) Notifica se algum teste quebrar
+4. Gera e publica o **Allure Report no GitHub Pages**
+5. Salva histórico para gráficos de tendência entre execuções
+6. Faz upload de screenshots e vídeos em caso de falha
+
+### Configurar as Secrets no repositório
+
+Acesse **Settings → Secrets and variables → Actions → New repository secret** e cadastre:
+
+| Secret | Valor |
+|---|---|
+| `STANDARD_USER` | `standard_user` |
+| `LOCKED_USER` | `locked_out_user` |
+| `PROBLEM_USER` | `problem_user` |
+| `PASSWORD` | `secret_sauce` |
+
+### Ativar o GitHub Pages
+
+1. Vá em **Settings → Pages**
+2. Em **Source**, selecione **Deploy from a branch**
+3. Selecione a branch **`gh-pages`** e pasta **`/ (root)`**
+4. Clique em **Save**
+
+O relatório ficará disponível em:
+```
+https://seu-usuario.github.io/playwright-saucedemo/allure-report
+```
 
 > Veja a configuração completa em [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
@@ -190,11 +241,13 @@ export class LoginPage {
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage';
 
+const { STANDARD_USER, LOCKED_USER, PASSWORD } = process.env;
+
 test.describe('Login', () => {
   test('deve realizar login com sucesso @smoke', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.navigate();
-    await loginPage.login('standard_user', 'secret_sauce');
+    await loginPage.login(STANDARD_USER!, PASSWORD!);
 
     await expect(page).toHaveURL(/inventory/);
   });
@@ -202,7 +255,7 @@ test.describe('Login', () => {
   test('deve exibir erro ao logar com usuário bloqueado', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.navigate();
-    await loginPage.login('locked_out_user', 'secret_sauce');
+    await loginPage.login(LOCKED_USER!, PASSWORD!);
 
     await expect(loginPage.errorMessage).toBeVisible();
   });
