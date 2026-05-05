@@ -1,0 +1,70 @@
+name: Playwright E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run Playwright Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # 1. Checkout do código
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Instalar dependências
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Instalar browsers do Playwright
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      # 5. Executar os testes
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          BASE_URL: https://www.saucedemo.com
+          CI: true
+
+      # 6. Upload do relatório HTML do Playwright (sempre, mesmo com falha)
+      - name: Upload Playwright HTML Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-html-report
+          path: playwright-report/
+          retention-days: 30
+
+      # 7. Upload dos resultados para o Allure (sempre, mesmo com falha)
+      - name: Upload Allure Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 30
+
+      # 8. Upload de screenshots e vídeos em caso de falha
+      - name: Upload test artifacts on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-failure-artifacts
+          path: |
+            test-results/
+          retention-days: 7
